@@ -11,6 +11,7 @@ global win
 global screen
 global type_play  # 1: máy , 0: người
 global first  # 1: máy trước  , 0: người trước
+global easy   #1 : easy 0: difficult
 
 SIZE = 19
 
@@ -38,9 +39,9 @@ def is_win(board):
     sum_sumcol_values(x)  # {0: 175, 1: 17, 2: 0, 3: 0, 4: 0, 5: {}, -1: {}}
     sum_sumcol_values(o)
 
-    if 5 in x and x[5] == 1:
+    if 5 in x and x[5] >= 1:
         return 'x won'
-    elif 5 in o and o[5] == 1:
+    elif 5 in o and o[5] >= 1:
         return 'o won'
 
     if sum(x.values()) == x[-1] and sum(o.values()) == o[
@@ -48,6 +49,28 @@ def is_win(board):
         return 'Draw'
 
     return 'Continue playing'
+
+
+def getindexposition(x, y):
+    '''
+    lấy index
+    '''
+    intx, inty = int(x), int(y)
+
+    dx, dy = x - intx, y - inty
+    if dx > 0.5:
+        x = intx + 1
+    elif dx < -0.5:
+        x = intx - 1
+    else:
+        x = intx
+    if dy > 0.5:
+        y = inty + 1
+    elif dx < -0.5:
+        y = inty - 1
+    else:
+        y = inty
+    return x, y
 
 
 ##AI Engine
@@ -89,7 +112,7 @@ def sum_sumcol_values(sumcol):
 
     for key in sumcol:
         if key == 5:
-            sumcol[5] = int(1 in sumcol[5].values())
+            sumcol[5] = int(len(sumcol[5]))
         else:
             sumcol[key] = sum(sumcol[key].values())
 
@@ -188,23 +211,25 @@ def score_of_col_one(board, col, y, x):
     key: điểm số khối đơn vị đó -> chỉ ktra 5 khối thay vì toàn bộ
     '''
 
+    deepth = 2 if easy else 4
+
     scores = {(0, 1): [], (-1, 1): [], (1, 0): [], (1, 1): []}
 
     scores[(0, 1)].extend(
         score_of_row(board, march(board, y, x, 0, -1, 4), 0, 1,
-                     march(board, y, x, 0, 1, 4), col))
+                     march(board, y, x, 0, 1, deepth), col))
 
     scores[(1, 0)].extend(
         score_of_row(board, march(board, y, x, -1, 0, 4), 1, 0,
-                     march(board, y, x, 1, 0, 4), col))
+                     march(board, y, x, 1, 0, deepth), col))
 
     scores[(1, 1)].extend(
         score_of_row(board, march(board, y, x, -1, -1, 4), 1, 1,
-                     march(board, y, x, 1, 1, 4), col))
+                     march(board, y, x, 1, 1, deepth), col))
 
     scores[(-1, 1)].extend(
         score_of_row(board, march(board, y, x, -1, 1, 4), 1, -1,
-                     march(board, y, x, 1, -1, 4), col))
+                     march(board, y, x, 1, -1, deepth), col))
 
     return score_ready(scores)
 
@@ -269,7 +294,7 @@ def stupid_score(board, col, anticol, y, x):
     a = winning_situation(sumcol)
     adv += a * M
     sum_sumcol_values(sumcol)  # {0: 0, 1: 15, 2: 0, 3: 0, 4: 0, 5: 0, -1: 0}
-    adv += sumcol[-1] + sumcol[1] + 4 * sumcol[2] + 8 * sumcol[3] + 16 * sumcol[
+    adv += - sumcol[-1] + sumcol[1] + 4 * sumcol[2] + 8 * sumcol[3] + 16 * sumcol[
         4]
 
     # phòng thủ
@@ -278,7 +303,7 @@ def stupid_score(board, col, anticol, y, x):
     d = winning_situation(sumanticol)
     dis += d * (M - 100)
     sum_sumcol_values(sumanticol)
-    dis += sumanticol[-1] + sumanticol[1] + 4 * sumanticol[2] + 8 * sumanticol[
+    dis += - sumanticol[-1] + sumanticol[1] + 4 * sumanticol[2] + 8 * sumanticol[
         3] + 16 * sumanticol[4]
 
     res = adv + dis
@@ -353,8 +378,15 @@ def best_move(board, col):
     return movecol
 
 
+def switchScreenWon(game_res):
+    global win
+    endGame(game_res)
+    print(game_res)
+    win = True
+
+
 ##Graphics Engine
-##Event
+##Event Click
 def clickPvP(x, y):
     global board, colors, win, move_history, state, screen
 
@@ -383,11 +415,7 @@ def clickPvP(x, y):
 
             game_res = is_win(board)
             if game_res in ["o won", "x won", "Draw"]:
-                endGame(game_res, colors['g'])
-                print(game_res)
-                # screen.resetscreen()
-                # playGame()
-                win = True
+                switchScreenWon(game_res)
                 return
 
         elif state == 'o':
@@ -398,11 +426,7 @@ def clickPvP(x, y):
 
             game_res = is_win(board)
             if game_res in ["o won", "x won", "Draw"]:
-                endGame(game_res, colors['g'])
-                print(game_res)
-                # screen.resetscreen()
-                # playGame()
-                win = True
+                switchScreenWon(game_res)
                 return
 
 
@@ -434,9 +458,7 @@ def clickAI(x, y):
 
         game_res = is_win(board)
         if game_res in ["o won", "x won", "Draw"]:
-            endGame(game_res, colors['g'])
-            print(game_res)
-            win = True
+            switchScreenWon(game_res)
             return
 
         ay, ax = best_move(board, state)
@@ -447,9 +469,7 @@ def clickAI(x, y):
         state = 'x' if state == 'o' else 'o'
         game_res = is_win(board)
         if game_res in ["o won", "x won", "Draw"]:
-            endGame(game_res, colors['g'])
-            print(game_res)
-            win = True
+            switchScreenWon(game_res)
             return
 
 
@@ -475,55 +495,87 @@ def buttonSelectSetting(x, y):
             first = 0
             print("Người đi trước")
             screen.resetscreen()
-            playGame()
-        if (x > 50 and x < 250):
+            selectDifficult()
+        elif (x > 50 and x < 250):
             first = 1
             print("Máy đi trước")
+            screen.resetscreen()
+            selectDifficult()
+
+def buttonSelectLevel(x, y):
+    global easy
+    if (y > -20 and y < 50):
+        if (x > -250 and x < -50):
+            easy = 0
+            print("Khó")
+            screen.resetscreen()
+            playGame()
+        if (x > 50 and x < 250):
+            easy = 1
+            print("Dễ")
+            screen.resetscreen()
+            playGame()
+
+def clickRenew(x, y):
+    if (y > 3.5 and y < 4):
+        if (x > 6 and x < 8.4):
+            print("Về trang chủ")
+            screen.resetscreen()
+            home()
+        if (x > 10 and x < 12):
+            print("Chơi lại")
             screen.resetscreen()
             playGame()
 
 
+#
+# init setting screen
+#
 def initialize():
     global win, board, screen, colors, move_history, state, type_play
 
     screen = turtle.Screen()
+    screen.cv._rootwindow.resizable(False, False)
     screen.title("Caro")
     screen.setup(width=1000, height=1000)
     screen.tracer(200)
+    # screen.mainloop()
 
-    pen = turtle.Turtle()
-    pen.penup()
-    pen.goto(-50, 50)
+    home()
 
-    pen.pendown()
-    pen.pencolor('red')
-    pen.speed(9)
-    pen.width(3)
 
-    for i in range(2):
-        pen.backward(200)
-        pen.right(90)
-        pen.forward(70)
-        pen.right(90)
+def setColor():
+    global win, board, screen, colors, move_history, state, type_play
 
-    pen.penup()
-    pen.goto(50, 50)
+    colors = {'o': turtle.Turtle(), 'x': turtle.Turtle(), 'w': turtle.Turtle(),
+              'r': turtle.Turtle()}
+    colors['o'].color('DarkBlue')
+    colors['x'].color('Brown')
+    colors['w'].color('white')
+    colors['r'].color('red')
+    colors['r'].width(3)
 
-    pen.pendown()
-    pen.pencolor('red')
+    for key in colors:
+        colors[key].ht()
+        colors[key].penup()
+        colors[key].speed(0)
 
-    for i in range(2):
-        pen.forward(200)
-        pen.right(90)
-        pen.forward(70)
-        pen.right(90)
 
-    pen.penup()
-    pen.goto(-215, 7)
-    pen.write("Chơi với người", font=('Courier', 12, 'normal'))
+##
+#   SCREEN
+##
+def home():
+    global win, board, screen, colors, move_history, state, type_play
+    screen.setworldcoordinates(-500, 500, 500, -500)
+    screen.bgcolor('PeachPuff')
+    screen.bgpic("background.gif")
 
-    pen.goto(85, 7)
-    pen.write("Chơi với máy", font=('Courier', 12, 'normal'))
+    setColor()
+
+    drawRectangle(-250, 50, 200, 70, colors['r'])
+    drawRectangle(50, 50, 200, 70, colors['r'])
+    drawText(-238, 25, "Chơi với người", 16, colors['r'])
+    drawText(75, 25, "Chơi với máy", 16, colors['r'])
 
     turtle.onscreenclick(buttonSelect, 1)
     turtle.listen()
@@ -531,67 +583,42 @@ def initialize():
 
 
 def setting():
-    global first
+    global colors, first
+    setColor()
 
-    pen = turtle.Turtle()
-    pen.penup()
-    pen.goto(-50, 50)
-
-    pen.pendown()
-    pen.pencolor('red')
-    pen.speed(9)
-    pen.width(3)
-
-    for i in range(2):
-        pen.backward(200)
-        pen.right(90)
-        pen.forward(70)
-        pen.right(90)
-
-    pen.penup()
-    pen.goto(50, 50)
-    pen.pendown()
-    pen.pencolor('red')
-
-    for i in range(2):
-        pen.forward(200)
-        pen.right(90)
-        pen.forward(70)
-        pen.right(90)
-
-    pen.penup()
-    pen.goto(-215, 7)
-    pen.write("Người đi trước", font=('Courier', 12, 'normal'))
-
-    pen.goto(85, 7)
-    pen.write("Máy đi trước", font=('Courier', 12, 'normal'))
+    drawRectangle(-250, 50, 200, 70, colors['r'])
+    drawRectangle(50, 50, 200, 70, colors['r'])
+    drawText(-238, 25, "Người đi trước", 16, colors['r'])
+    drawText(75, 25, "Máy đi trước", 16, colors['r'])
 
     turtle.onscreenclick(buttonSelectSetting, 1)
+    turtle.listen()
+    turtle.done()
+
+def selectDifficult():
+    global colors, first, easy
+    setColor()
+
+    drawRectangle(-250, 50, 200, 70, colors['r'])
+    drawRectangle(50, 50, 200, 70, colors['r'])
+    drawText(-170, 25, "Khó", 16, colors['r'])
+    drawText(130, 25, "Dễ", 16, colors['r'])
+
+    turtle.onscreenclick(buttonSelectLevel, 1)
     turtle.listen()
     turtle.done()
 
 
 def playGame():
     global win, board, screen, colors, move_history, state, type_play
+    screen.bgpic("nopic")
+    screen.setworldcoordinates(-1, SIZE, SIZE, -1)
+    setColor()
 
     move_history = []
     win = False
     board = make_empty_board(SIZE)
     state = 'x'
-
-    screen.setworldcoordinates(-1, SIZE, SIZE, -1)
-    screen.tracer(200)
-    colors = {'o': turtle.Turtle(), 'x': turtle.Turtle(), 'w': turtle.Turtle(), 'r': turtle.Turtle()}
-    colors['o'].color('red')
-    colors['x'].color('black')
-    colors['w'].color('white')
-    colors['r'].color('red')
-    colors['r'].width('3')
-
-    for key in colors:
-        colors[key].ht()
-        colors[key].penup()
-        colors[key].speed(0)
 
     border = turtle.Turtle()
     border.speed(9)
@@ -631,66 +658,67 @@ def playGame():
     screen.mainloop()
 
 
-def endGame(winner, color):
-    color.goto(4.5, 5)
-    color.pendown()
-    color.begin_fill()
+def endGame(winner):
+    setColor()
+
+    colors['w'].goto(4.5, 5)
+    colors['w'].pendown()
+    colors['w'].begin_fill()
     for i in range(2):
-        color.forward(SIZE - 10)
-        color.right(90)
-        color.forward(4)
-        color.right(90)
-    color.end_fill()
-    color.penup()
+        colors['w'].forward(SIZE - 10)
+        colors['w'].right(90)
+        colors['w'].forward(4)
+        colors['w'].right(90)
+    colors['w'].end_fill()
+    colors['w'].penup()
 
-    color.goto(8, 2.5)
-    color.pencolor('red')
-    colors['g'].write(winner.upper(), font=('Courier', 24, 'normal'))
+    drawText(8, 2.5, winner.upper(), 24, colors['r'])
+    drawText(6, 4, "Trang chủ", 16, colors['r'])
+    drawText(10, 4, "Chơi lại", 16, colors['r'])
 
-    color.goto(6, 4)
-    colors['g'].write("Trang chủ", font=('Courier', 12, 'normal'))
-
-    color.goto(10, 4)
-    colors['g'].write("Chơi lại", font=('Courier', 12, 'normal'))
     screen.onclick(clickRenew)
+    turtle.listen()
+    turtle.done()
 
 
-def clickRenew(x, y):
-    if (y > 3.5 and y < 4):
-        if (x > 6 and x < 8):
-            print("Về trang chủ")
-            screen.resetscreen()
-            initialize()
-        if (x > 10 and x < 11.5):
-            print("Chơi lại")
-            screen.resetscreen()
-            playGame()
+##
+#       PEN DRAW
+##
+def drawRectangle(x, y, width, height, pen):
+    pen.goto(x, y)
+    pen.pendown()
+
+    for i in range(2):
+        pen.forward(width)
+        pen.right(90)
+        pen.forward(height)
+        pen.right(90)
+    pen.penup()
+
+    paint = turtle.Turtle()
+    paint.penup()
+    paint.goto(x, y)
+    paint.pendown()
+    paint.color("white")
+    paint.begin_fill()
+
+    for i in range(2):
+        paint.forward(width)
+        paint.right(90)
+        paint.forward(height)
+        paint.right(90)
+    paint.end_fill()
+    paint.penup()
 
 
-def getindexposition(x, y):
-    '''
-    lấy index
-    '''
-    intx, inty = int(x), int(y)
-
-    dx, dy = x - intx, y - inty
-    if dx > 0.5:
-        x = intx + 1
-    elif dx < -0.5:
-        x = intx - 1
-    else:
-        x = intx
-    if dy > 0.5:
-        y = inty + 1
-    elif dx < -0.5:
-        y = inty - 1
-    else:
-        y = inty
-    return x, y
+def drawText(x, y, text, font, pen):
+    pen.goto(x, y)
+    pen.write(text, font=('Courier', font, 'bold'))
 
 
 def draw_stone(x, y, colturtle):
-    colturtle.width(3)
+    colturtle.width(15)
+    colturtle.penup()
     if state == 'x':
         colturtle.goto(x - 0.3, y - 0.3)
         colturtle.pendown()
@@ -700,11 +728,14 @@ def draw_stone(x, y, colturtle):
         colturtle.pendown()
         colturtle.goto(x - 0.3, y + 0.3)
     if state == 'o':
+
+        # colturtle.begin_fill()
         colturtle.goto(x, y - 0.3)
         colturtle.pendown()
         colturtle.circle(0.3)
-    colturtle.penup()
+        # colturtle.end_fill()
 
+    colturtle.penup()
 
 if __name__ == '__main__':
     initialize()
